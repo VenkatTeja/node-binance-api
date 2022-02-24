@@ -5401,6 +5401,21 @@ let api = function Binance( options = {} ) {
                 }
 
                 apiRequest( url + 'v1/listenKey', {}, function ( error, response ) {
+                    let data = {error, code: error? error.code : 'nocode', body: error? error.body : 'nobody', response}
+                    if ( Binance.options.verbose ) Binance.options.log( 'listenKey response: ' + JSON.stringify(data));
+                    if ( error ) {
+                        Binance.options.log( 'Attempting reconnect in 1s');
+                        setTimeout(() => {
+                            reconnect()
+                        }, 1000)
+                        return;
+
+                        // if ( error.code && error.code === 'ESOCKETTIMEDOUT' )
+                        // else if ( error.body ) {
+                        //     subscribed_callback( JSON.parse( error.body ) );
+                        //     return;
+                        // }
+                    }
                     Binance.options.listenFutureKey = response.listenKey;
                     setTimeout( function userDataKeepAlive() { // keepalive
                         try {
