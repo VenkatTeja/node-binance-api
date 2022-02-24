@@ -5393,21 +5393,27 @@ let api = function Binance( options = {} ) {
              * @param {function} order_update_callback
              * @param {Function} subscribed_callback - subscription callback
              */
-            userFutureData: function userFutureData( margin_call_callback, account_update_callback = undefined, order_update_callback = undefined, subscribed_callback = undefined, account_config_update_callback = undefined ) {
+             userFutureData: function userFutureData(margin_call_callback, account_update_callback = undefined, order_update_callback = undefined, subscribed_callback = undefined, account_config_update_callback = undefined, retry=0 ) {
+                let internalCount = 0
+                console.log('userFutureData', retry, internalCount)
                 const url = ( Binance.options.test ) ? fapiTest : fapi;
 
                 let reconnect = () => {
-                    if ( Binance.options.reconnect ) userFutureData( margin_call_callback, account_update_callback, order_update_callback, subscribed_callback )
+                    if ( Binance.options.reconnect ) userFutureData( margin_call_callback, account_update_callback, order_update_callback, subscribed_callback, account_config_update_callback, retry+1 )
                 }
-
                 apiRequest( url + 'v1/listenKey', {}, function ( error, response ) {
-                    let data = {error, code: error? error.code : 'nocode', body: error? error.body : 'nobody', response}
+                    internalCount += 1
+                    let data = {error, code: error? error.code : 'nocode', body: error? error.body : 'nobody', response, internalCount, retry}
                     if ( Binance.options.verbose ) Binance.options.log( 'listenKey response: ' + JSON.stringify(data));
                     if ( error ) {
-                        Binance.options.log( 'Attempting reconnect in 1s');
-                        setTimeout(() => {
-                            reconnect()
-                        }, 1000)
+                        if(internalCount > 1)
+                            return;
+                        if(retry < 50) {
+                            Binance.options.log( 'Attempting reconnect in 1s #retry: ' + retry);
+                            setTimeout(() => {
+                                reconnect()
+                            }, 1000)
+                        }
                         return;
 
                         // if ( error.code && error.code === 'ESOCKETTIMEDOUT' )
@@ -5433,6 +5439,7 @@ let api = function Binance( options = {} ) {
                     Binance.options.future_order_update_callback = order_update_callback;
                     const subscription = futuresSubscribe( Binance.options.listenFutureKey, userFutureDataHandler, { reconnect } );
                     if ( subscribed_callback ) subscribed_callback( subscription.endpoint );
+                    Binance.isConnecting = false;
                 }, 'POST' );
             },
 
